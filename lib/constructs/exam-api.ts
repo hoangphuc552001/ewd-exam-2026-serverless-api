@@ -101,18 +101,21 @@ export class AppApi extends Construct {
       },
     });
 
-    // Enable this only when required by an endpoint
-    // const requestAuthorizer = new apig.RequestAuthorizer(
-    //   this,
-    //   "RequestAuthorizer",
-    //   {
-    //     identitySources: [apig.IdentitySource.header("cookie")],
-    //     handler: authorizerFn,
-    //     resultsCacheTtl: cdk.Duration.minutes(0),
-    //   }
-    // );
+    const requestAuthorizer = new apig.RequestAuthorizer(
+      this,
+      "RequestAuthorizer",
+      {
+        identitySources: [apig.IdentitySource.header("cookie")],
+        handler: authorizerFn,
+        resultsCacheTtl: cdk.Duration.minutes(0),
+      }
+    );
 
     const schedules = api.root.addResource("schedules");
+    schedules.addMethod("POST", new apig.LambdaIntegration(lambdaBFn), {
+      authorizer: requestAuthorizer,
+      authorizationType: apig.AuthorizationType.CUSTOM,
+    });
     const scheduleByCinema = schedules.addResource("{cinemaId}");
     scheduleByCinema.addMethod("GET", new apig.LambdaIntegration(lambdaAFn));
   }

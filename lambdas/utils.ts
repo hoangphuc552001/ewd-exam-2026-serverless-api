@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken'
 import jwkToPem from "jwk-to-pem";
 
 export type CookieMap = { [key: string]: string } | undefined;
-export type JwtToken = { sub: string; email: string } | null;
+export type JwtToken = { sub: string; email: string, "cognito:username"?: string } | null;
 export type Jwk = {
   keys: {
     alg: string;
