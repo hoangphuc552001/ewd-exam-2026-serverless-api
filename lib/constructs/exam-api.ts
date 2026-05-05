@@ -57,6 +57,10 @@ export class AppApi extends Construct {
     const lambdaAFn = new lambdanode.NodejsFunction(this, "lambdaA", {
       ...appCommonFnProps,
       entry: `${__dirname}/../../lambdas/lambdaA.ts`,
+      environment: {
+        TABLE_NAME: table.tableName,
+        REGION: "eu-west-1",
+      },
     });
 
     const lambdaBFn = new lambdanode.NodejsFunction(this, "lambdaB", {
@@ -80,6 +84,7 @@ export class AppApi extends Construct {
     });
 
     // Permissions
+    table.grantReadData(lambdaAFn);
     table.grantReadWriteData(lambdaBFn);
 
     // REST App API
@@ -106,5 +111,9 @@ export class AppApi extends Construct {
     //     resultsCacheTtl: cdk.Duration.minutes(0),
     //   }
     // );
+
+    const schedules = api.root.addResource("schedules");
+    const scheduleByCinema = schedules.addResource("{cinemaId}");
+    scheduleByCinema.addMethod("GET", new apig.LambdaIntegration(lambdaAFn));
   }
 }
