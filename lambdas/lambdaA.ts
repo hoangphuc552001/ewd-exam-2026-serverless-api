@@ -4,9 +4,8 @@ import {
   DynamoDBDocumentClient,
   QueryCommand,
   QueryCommandInput,
-  GetCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { Schedule } from "aws-cdk-lib/aws-events";
+import { Schedule, DBSchedule } from "../shared/types";
 
 const client = createDDbDocClient();
 
@@ -14,14 +13,54 @@ export const handler: APIGatewayProxyHandlerV2 = async (event, context) => {
   try {
     console.log("Event: ", JSON.stringify(event));
 
+    const cinemaId = event?.pathParameters?.cinemaId;
+    const movieId = event?.queryStringParameters?.movieId;
+    if (!cinemaId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ message: "missing cinema id" }),
+      };
+    }
+    const queryInput: QueryCommandInput = {
+      TableName: process.env.TABLE_NAME,
+      KeyConditionExpression: "pk = :pk",
+      ExpressionAttributeValues: {
+        ":pk": `s#${cinemaId}`,
+      },
+    };
+    const result = await client.send(new QueryCommand(queryInput));
+    const items = (result.Items ?? []) as DBSchedule[];
+    if (movieId) {
+      let schedule;
+      for (let item of items) {
+        if (item.sk === `s#${movieId}`) {
+          schedule = item;
+          break;
+        }
+      }
+      if (!schedule) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({
+            message: "cannot find schedule for cinema",
+          }),
+        };
+      }
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ screenNo: schedule.screenNo }),
+      };
+    }
+    const schedules: Schedule[] = items.map((item) => ({
+      cinemaId: item.pk.replace("s#", ""),
+      movieId: item.sk.replace("s#", ""),
+      screenNo: item.screenNo,
+    }));
+
     return {
       statusCode: 200,
-      headers: {
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        data: {}
-      }),
+      body: JSON.stringify(schedules),
     };
   } catch (error: any) {
     console.log(JSON.stringify(error));
